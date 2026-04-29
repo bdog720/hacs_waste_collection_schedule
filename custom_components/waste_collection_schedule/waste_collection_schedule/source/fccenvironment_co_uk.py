@@ -1,3 +1,4 @@
+import datetime
 from urllib.parse import urlparse
 
 import requests
@@ -24,9 +25,21 @@ DESCRIPTION = """
     """
 URL = "https://fccenvironment.co.uk"
 EXTRA_INFO = [
-    {"title": "Harborough District Council", "url": "https://harborough.gov.uk"},
-    {"title": "South Hams District Council", "url": "https://southhams.gov.uk/"},
-    {"title": "West Devon Borough Council", "url": "https://www.westdevon.gov.uk/"},
+    {
+        "title": "Harborough District Council",
+        "url": "https://harborough.gov.uk",
+        "default_params": {"region": "harborough"},
+    },
+    {
+        "title": "South Hams District Council",
+        "url": "https://southhams.gov.uk/",
+        "default_params": {"region": "southhams"},
+    },
+    {
+        "title": "West Devon Borough Council",
+        "url": "https://www.westdevon.gov.uk/",
+        "default_params": {"region": "westdevon"},
+    },
 ]
 
 TEST_CASES = {
@@ -67,11 +80,13 @@ class Source:
             },
             verify=False,
         )
-        results = {}
+        results: dict[str, datetime.date] = {}
         for item in response.json()["binCollections"]["tile"]:
             try:
                 soup = BeautifulSoup(item[0], "html.parser")
-                date = parser.parse(soup.find_all("b")[2].text.split(",")[1].strip()).date()
+                date = parser.parse(
+                    soup.find_all("b")[2].text.split(",")[1].strip()
+                ).date()
                 service = soup.text.split("\n")[0]
             except parser._parser.ParserError:
                 continue
@@ -110,16 +125,21 @@ class Source:
             verify=False,
         )
         soup = BeautifulSoup(r.text, "html.parser")
-        services = soup.find(
+        services_div = soup.find(
             "div",
             attrs={"class": "blocks block-your-next-scheduled-bin-collection-days"},
-        ).find_all("li")
+        )
+        services = services_div.find_all("li") if services_div else []  # type: ignore[union-attr]
         entries = []
         for service in services:
             for type in _icons:
                 if type.lower() in service.text.lower():
                     try:
-                        date = parser.parse(service.find("span", attrs={"class": "pull-right"}).text.strip()).date()
+                        date = parser.parse(
+                            service.find(
+                                "span", attrs={"class": "pull-right"}
+                            ).text.strip()
+                        ).date()
                     except parser._parser.ParserError:
                         continue
 
@@ -143,3 +163,4 @@ class Source:
             return self.getcollectiondetails(
                 endpoint="https://waste.southhams.gov.uk/mycollections/getcollectiondetails"
             )
+        return []

@@ -4,7 +4,10 @@ from urllib.parse import urljoin
 import requests
 from bs4 import BeautifulSoup
 from waste_collection_schedule import Collection  # type: ignore[attr-defined]
-from waste_collection_schedule.service.ICS import ICS # type: ignore[attr-defined]
+from waste_collection_schedule.exceptions import (
+    SourceArgumentNotFoundWithSuggestions,
+)
+from waste_collection_schedule.service.ICS import ICS  # type: ignore[attr-defined]
 
 TITLE = "Stadtservice Korneuburg"
 DESCRIPTION = "Source for Stadtservice Korneuburg"
@@ -28,6 +31,20 @@ WASTE_TYPE_URLS = {
 }
 
 
+PARAM_TRANSLATIONS = {
+    "de": {
+        "street_name": "Straßenname",
+        "street_number": "Hausnummer",
+        "teilgebiet": "Teilgebiet",
+    },
+    "en": {
+        "street_name": "Street Name",
+        "street_number": "Street Number",
+        "teilgebiet": "Subarea",
+    },
+}
+
+
 class Source:
     def __init__(self, street_name, street_number, teilgebiet=-1):
         self.street_name = street_name
@@ -43,7 +60,6 @@ class Source:
 
     @staticmethod
     def extract_street_numbers(soup):
-
         scripts = soup.findAll("script", {"type": "text/javascript"})
 
         street_number_idx = 0
@@ -93,8 +109,7 @@ class Source:
         return region
 
     def determine_region(self):
-        """finds the target region for the street and street number"""
-
+        """Find the target region for the street and street number."""
         if 0 < int(self.teilgebiet) <= 4:
             return str(self.teilgebiet)
 
@@ -110,8 +125,8 @@ class Source:
         street_found = self.street_name in available_streets.keys()
 
         if not street_found:
-            raise Exception(
-                f"{self.street_name} not found. Please check back spelling with the official site: {url}"
+            raise SourceArgumentNotFoundWithSuggestions(
+                "street_name", self.street_name, list(available_streets.keys())
             )
 
         self._street_name_id = available_streets.get(self.street_name)
@@ -121,9 +136,10 @@ class Source:
         ).get(str(self.street_number), (-1, "not found"))
 
         if street_number_link == "not found":
-            raise Exception(
-                f"{self.street_number} not found. Available numbers for {self.street_name} are\
-             {list(number_dict.get(available_streets['Am Hafen']).keys())}"
+            raise SourceArgumentNotFoundWithSuggestions(
+                "street_number",
+                self.street_number,
+                list(number_dict.get(available_streets.get(self.street_name)).keys()),
             )
 
         # add selection cookie
@@ -153,8 +169,7 @@ class Source:
         return str(region)
 
     def get_region_links(self):
-        """traverses the pages for different waste types and collects download links for the iCals"""
-
+        """Traverse the pages for different waste types and collect download links for the iCals."""
         if self._region is None:
             self._region = self.determine_region()
 
@@ -178,8 +193,7 @@ class Source:
         return ical_urls
 
     def process_waste_type(self, url):
-        """downloads one calendar and returns list with entries"""
-
+        """Download one calendar and return list with entries."""
         r = requests.get(url=url, headers=self._headers, cookies=self._cookies)
         r.encoding = r.apparent_encoding
 
@@ -190,7 +204,6 @@ class Source:
         return entries
 
     def fetch(self):
-
         ical_urls = self.get_region_links()
         all_entries = []
 

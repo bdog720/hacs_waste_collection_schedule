@@ -3,6 +3,7 @@ from datetime import datetime
 
 import requests
 from waste_collection_schedule import Collection  # type: ignore[attr-defined]
+from waste_collection_schedule.exceptions import SourceArgumentNotFound
 
 TITLE = None
 DESCRIPTION = "Source for the Dutch HVCGroep waste management."
@@ -11,7 +12,12 @@ URL = "https://www.hvcgroep.nl"
 
 def EXTRA_INFO():
     return [
-        {"title": s["title"], "url": get_main_url(s["api_url"])} for s in SERVICE_MAP
+        {
+            "title": s["title"],
+            "url": get_main_url(s["api_url"]),
+            "default_params": {"service": extract_service_name(s["api_url"])},
+        }
+        for s in SERVICE_MAP
     ]
 
 
@@ -41,10 +47,12 @@ TEST_CASES = {
         "house_number": "1",
         "service": "hvcgroep",
     },
-    "Mijnblink": {
-        "postal_code": "5741BV",
-        "house_number": "76",
-        "service": "mijnblink",
+    "Reinis": {"postal_code": "3201AA", "house_number": "1", "service": "reinis"},
+    "ZRD": {"postal_code": "4691DH", "house_number": "4", "service": "zrd"},
+    "Hoorn": {"postal_code": "1628XA", "house_number": "1", "service": "hvcgroep"},
+    "Uitgeest": {
+        "postal_code": "1911LB",
+        "house_number": "14",
     },
 }
 
@@ -73,7 +81,7 @@ SERVICE_MAP = [
     },
     {
         "title": "Cyclus NV",
-        "api_url": "https://afvalkalender.cyclusnv.nl",
+        "api_url": "https://cyclusnv.nl",
         "icons": {
             "petfles-blik-drankpak_pmd": "mdi:recycle",
             "appel-gft": "mdi:leaf",
@@ -150,16 +158,6 @@ SERVICE_MAP = [
             "kliko-grijs-rest": "mdi:trash-can",
             "kliko-groen-gft": "mdi:leaf",
             "kliko-grijs-oranje-pmd": "mdi:recycle",
-            "doos-karton-papier": "mdi:archive",
-        },
-    },
-    {
-        "title": "Mijn Blink",
-        "api_url": "https://mijnblink.nl",
-        "icons": {
-            "zak-grijs-rest": "mdi:trash-can",
-            "appel-gft": "mdi:leaf",
-            "blik-metaal-melkpak-drankpak-zak-oranje-plastic": "mdi:recycle",
             "doos-karton-papier": "mdi:archive",
         },
     },
@@ -254,24 +252,45 @@ SERVICE_MAP = [
         },
     },
     {
-        "title": "ZRD",
-        "api_url": "https://afvalkalender.zrd.nl",
+        "title": "Mijn Afval Zaken - BUCH",
+        "api_url": "https://www.mijnafvalzaken.nl",
         "icons": {
-            "blik-metaal-melkpak-drankpak-zak-oranje-plastic": "mdi:recycle",
-            "doos-karton-papier": "mdi:archive",
+            "plastic-blik-drinkpak": "mdi:recycle",
+            "gft": "mdi:leaf",
+            "papier-en-karton": "mdi:archive",
+            "restafval": "mdi:trash-can",
+        },
+    },
+    {
+        "title": "Reinis",
+        "api_url": "https://reinis.nl",
+        "icons": {
             "appel-gft": "mdi:leaf",
-            "kliko-grijs-rest": "mdi:trash-can",
+            "plastic-pak-blik": "mdi:recycle",
+            "doos-karton-papier": "mdi:archive",
+            "kliko-grijs-zak-grijs-rest": "mdi:trash-can",
+        },
+    },
+    {
+        "title": "ZRD",
+        "api_url": "https://www.zrd.nl",
+        "icons": {
+            "appel en blad": "mdi:leaf",  # GFT-afval
+            "pet pak blik": "mdi:recycle",  # PMD
+            "zak rest rest": "mdi:trash-can",  # Restafval
+            "karton": "mdi:archive",  # Papier en karton
         },
     },
 ]
 
 
-def get_service_name_map():
-    def extract_service_name(api_url):
-        name = api_url.split(".")[-2]
-        name = name.split("/")[-1]
-        return name
+def extract_service_name(api_url):
+    name = api_url.split(".")[-2]
+    name = name.split("/")[-1]
+    return name
 
+
+def get_service_name_map():
     return {
         extract_service_name(s["api_url"]): (s["api_url"], s["icons"])
         for s in SERVICE_MAP
@@ -290,12 +309,11 @@ class Source:
     ):
         self.postal_code = postal_code
         self.house_number = house_number
-        self.house_letter = postal_code
+        self.house_letter = house_letter
         self.suffix = suffix
         self._url, self._icons = get_service_name_map()[service]
 
     def fetch(self):
-
         # Retrieve bagid (unique waste management identifier)
         r = requests.get(f"{self._url}/adressen/{self.postal_code}:{self.house_number}")
         r.raise_for_status()
@@ -303,14 +321,14 @@ class Source:
 
         # Something must be wrong, maybe the address isn't valid? No need to do the extra requests so just return here.
         if len(data) == 0:
-            raise Exception("no data found for this address")
+            raise SourceArgumentNotFound("postal_code", self.postal_code)
 
         bag_id = data[0]["bagid"]
-        if len(data) > 1 and self.house_letter and self.suffix:
+        if len(data) > 1 and (self.house_letter or self.suffix):
             _LOGGER.info(f"Checking {self.house_letter} {self.suffix}")
             for address in data:
                 if (
-                    address["huisletter"] == self.house_letter
+                    address["huisletter"].lower() == self.house_letter.lower()
                     and address["toevoeging"] == self.suffix
                 ):
                     bag_id = address["bagid"]

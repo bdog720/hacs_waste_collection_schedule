@@ -10,6 +10,14 @@ URL = "https://service.stuttgart.de"
 TEST_CASES = {"Im Steinengarten 7": {"street": "Im Steinengarten", "streetnr": 7}}
 
 
+PARAM_TRANSLATIONS = {
+    "de": {
+        "street": "Straße",
+        "streetnr": "Hausnummer",
+    }
+}
+
+
 # Parser for HTML checkbox
 class InputCheckboxParser(HTMLParser):
     def __init__(self, name):
@@ -107,7 +115,7 @@ class Source:
             ("calendar[street]", self._street),
             ("calendar[streetnr]", self._streetnr),
             ("calendar[datefrom]", now.strftime("%d.%m.%Y")),
-            ("calendar[dateto]", f"31.01.{now.year+1}"),
+            ("calendar[dateto]", f"31.01.{now.year + 1}"),
         ]
         for w in wastetypes.value:
             args.append(("calendar[wastetype][]", w))

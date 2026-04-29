@@ -18,6 +18,16 @@ TEST_CASES = {
 }
 
 
+PARAM_TRANSLATIONS = {
+    "de": {
+        "city": "Ort",
+        "street": "Straße",
+        "house_number": "Hausnummer",
+        "address_suffix": "Hausnummerzusatz",
+    },
+}
+
+
 class Source(JumomindSource):
     def __init__(
         self, city: str, street: str, house_number: int, address_suffix: str = ""

@@ -99,13 +99,15 @@ class Source:
             event_taget="ctl00$MainContent$btnSearch",
         )
 
-        r = session.post(API_URL, data=args)
+        r = session.post(API_URL, data=args, verify=False)
         r.raise_for_status()
 
         # get page to select an address
         soup = BeautifulSoup(r.text, "html.parser")
 
-        selectable = soup.find_all("a", {"class": "anchor-button small"}, text="Select")
+        selectable = soup.find_all(
+            "a", {"class": "anchor-button small"}, string="Select"
+        )
 
         if len(selectable) == 0:
             raise ValueError("No address found")
@@ -149,35 +151,49 @@ class Source:
             event_taget="ctl00$MainContent$gvPropertyResults$ctl02$btnSelect",
             additional={selected["href"].split("'")[1]: ""},
         )
-        r = session.post(API_URL, data=args)
+        r = session.post(API_URL, data=args, verify=False)
         r.raise_for_status()
 
         soup = BeautifulSoup(r.text, "html.parser")
         cal_header = soup.find("th", {"class": "header-month"}).find("span").text
 
-        from_month = cal_header.split("-")[0].strip()
-        to_month = cal_header.split("-")[1].strip().split(" ")[0]
-        to_year = from_year = cal_header.split("-")[1].strip().split(" ")[1]
+        month_range = cal_header.split("-")
+        from_month = month_range[0].strip()
+
+        to_month, to_year, from_year = None, None, None
+        if len(month_range) > 1:
+            to_month = month_range[1].strip().split(" ")[0]
+            to_year = from_year = month_range[1].strip().split(" ")[1]
+
         # if main month contains a year, set it (maybe happens in december???)
         if len(from_month.split(" ")) > 1:
             from_year = from_month.split(" ")[1]
             from_month = from_month.split(" ")[0]
 
-        today_div = soup.find("table", id="cal").find("td", class_="today")
+        # Single-month calendar (no "other month" range)
+        if to_month is None:
+            if from_year is None:
+                from_year = str(datetime.now().year)
+            main_month = from_month
+            main_year = from_year
+            other_month = from_month
+            other_year = from_year
+        else:
+            today_div = soup.find("table", id="cal").find("td", class_="today")
 
-        # if other-month is to_month
-        if (
-            "other-month" in today_div.attrs["class"]
-            and datetime.now().strftime("%B") == to_month
-        ) or (
-            "main-month" in today_div.attrs["class"]
-            and datetime.now().strftime("%B") == from_month
-        ):
-            main_month, other_month = from_month, to_month
-            main_year, other_year = from_year, to_year
-        else:  # if other-month is from_month
-            main_month, other_month = to_month, from_month
-            main_year, other_year = to_year, from_year
+            # if other-month is to_month
+            if (
+                "other-month" in today_div.attrs["class"]
+                and datetime.now().strftime("%B") == to_month
+            ) or (
+                "main-month" in today_div.attrs["class"]
+                and datetime.now().strftime("%B") == from_month
+            ):
+                main_month, other_month = from_month, to_month
+                main_year, other_year = from_year, to_year
+            else:  # if other-month is from_month
+                main_month, other_month = to_month, from_month
+                main_year, other_year = to_year, from_year
 
         entries = []
 

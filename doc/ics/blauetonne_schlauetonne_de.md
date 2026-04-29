@@ -5,10 +5,10 @@ Blaue Tonne - Schlaue Tonne is supported by the generic [ICS](/doc/source/ics.md
 
 ## How to get the configuration arguments
 
-- Goto <https://www.blauetonne-schlauetonne.de/abfuhrkalender> and select your location.
- - Right-click on `iCal Download` link and copy link address.
- - Replace the `url` in the example configuration with this link.
- - Replace the year in the url with `{%Y}`.
+- Go to <https://www.blauetonne-schlauetonne.de/abfuhrkalender> and select your location.
+- Right-click on `iCal Download` link and copy link address.
+- Use this link as the `url` parameter.
+- Replace the year in the url with `{%Y}`.
 
 ## Examples
 
@@ -20,4 +20,13 @@ waste_collection_schedule:
     - name: ics
       args:
         url: https://www.blauetonne-schlauetonne.de/abfuhrkalender/{%Y}/altlussheim-altlussheim-1668.ics
+```
+### Bruchsal Untergrombach
+
+```yaml
+waste_collection_schedule:
+  sources:
+    - name: ics
+      args:
+        url: https://www.blauetonne-schlauetonne.de/abfuhrkalender/{%Y}/bruchsal-untergrombach-244.ics
 ```

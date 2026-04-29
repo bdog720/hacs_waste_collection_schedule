@@ -135,7 +135,6 @@ The app_id can be found from the url of the play store entry: https://play.googl
 | de.k4systems.avlserviceplus | Kreis Ludwigsburg |
 | de.k4systems.muellalarm | Schönmackers |
 | de.k4systems.abfallapploe | Kreis Lörrach |
-| de.k4systems.abfallappart | Kreis Trier-Saarburg |
 | de.k4systems.abfallapp | Kreis Augsburg |
 | de.k4systems.abfallappvorue | Kreis Vorpommern-Rügen |
 | de.k4systems.abfallappfds | Kreis Freudenstadt |
@@ -157,13 +156,13 @@ The app_id can be found from the url of the play store entry: https://play.googl
 | de.k4systems.leipziglk | Landkreis Leipzig |
 | de.k4systems.abfallappbk | Bad Kissingen |
 | de.cmcitymedia.hokwaste | Hohenlohekreis |
-| de.abfallwecker | Rottweil, Tuttlingen, Kreis Waldshut, Prignitz, Nordsachsen |
+| de.abfallwecker | Tuttlingen, Prignitz, Osterode am Harz, Nordsachsen |
 | de.k4systems.abfallappka | Kreis Karlsruhe |
-| de.k4systems.lkgoettingen | Abfallwirtschaft Altkreis Göttingen, Abfallwirtschaft Altkreis Osterode am Harz |
+| de.k4systems.lkgoettingen | Kreis Göttingen |
 | de.k4systems.abfallappcux | Kreis Cuxhaven |
 | de.k4systems.abfallslk | Salzlandkreis |
 | de.k4systems.abfallappzak | ZAK Kempten |
-| de.zawsr | ZAW-SR Straubing |
+| de.zawsr | ZAW-SR |
 | de.k4systems.teamorange | Kreis Würzburg |
 | de.k4systems.abfallappvivo | Kreis Miesbach |
 | de.k4systems.lkgr | Landkreis Görlitz |
@@ -180,10 +179,11 @@ The app_id can be found from the url of the play store entry: https://play.googl
 | de.k4systems.abfallwelt | Kreis Kitzingen |
 | de.k4systems.lkemmendingen | Kreis Emmendingen |
 | de.k4systems.abfallkreisrt | Kreis Reutlingen |
+| de.abfallplus.tbrapp | Reutlingen |
 | de.k4systems.abfallappmetz | Metzingen |
 | de.k4systems.abfallappmyk | Kreis Mayen-Koblenz |
 | de.k4systems.abfallappoal | Kreis Ostallgäu |
-| de.k4systems.regioentsorgung | RegioEntsorgung AöR |
+| de.k4systems.regioentsorgung | Alsdorf, Baesweiler, Eschweiler, Heimbach, Herzogenrath, Inden, Langerwehe, Linnich, Monschau, Nideggen, Niederzier, Nörvenich, Roetgen, Simmerath, Stolberg, Vettweiß, Würselen |
 | de.k4systems.abfalllkbt | Kreis Bayreuth |
 | de.k4systems.awvapp | Kreis Vechta |
 | de.k4systems.aevapp | Schwarze Elster |
@@ -218,8 +218,17 @@ The app_id can be found from the url of the play store entry: https://play.googl
 | de.k4systems.awrplus | Kreis Rotenburg (Wümme) |
 | de.k4systems.lkmabfallplus | München Landkreis |
 | de.k4systems.athosmobil | ATHOS GmbH |
-| de.k4systems.willkommen |  |
+| de.k4systems.willkommen | Rottweil, Tuttlingen, Waldshut, Frankfurt (Oder), Prignitz |
 | de.idcontor.abfalllu | Ludwigshafen |
+| de.ahrweiler.meinawb | Kreis Ahrweiler |
+| de.edg.abfallapp | Entsorgung Dortmund GmbH (EDG) |
+| de.biberach.abfallapp | Kreis Biberach |
+| de.abfallplus.abfallappver | Kreis Verden |
+| de.abfallplus.abfallappwt | Kreis Waldshut |
+| de.remondis.rheinland | Remondis Rheinland |
+| de.abfallplus.gfaabfallinfo | Kreis Lüneburg |
+| de.abfallplus.abfalllkrw | Kreis Rottweil |
+| de.cmcitymedia.shawaste | Kreis Schwäbisch-Hall |
 <!--End of service section-->
 
 ## Note

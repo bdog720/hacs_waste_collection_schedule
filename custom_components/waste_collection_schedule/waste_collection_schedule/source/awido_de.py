@@ -1,9 +1,11 @@
 import datetime
 import logging
+import re
 
 import requests
+from icalevents import icalevents
 from waste_collection_schedule import Collection  # type: ignore[attr-defined]
-from waste_collection_schedule.service.ICS import ICS
+from waste_collection_schedule.exceptions import SourceArgumentNotFoundWithSuggestions
 
 TITLE = "AWIDO Online"
 DESCRIPTION = "Source for AWIDO waste collection."
@@ -11,12 +13,22 @@ URL = "https://www.awido-online.de/"
 
 
 def EXTRA_INFO():
-    return [{"title": s["title"], "url": s["url"]} for s in SERVICE_MAP]
+    return [
+        {
+            "title": s["title"],
+            "url": s["url"],
+            "default_params": {
+                "customer": s["service_id"],
+                **s.get("default_params", {}),
+            },
+        }
+        for s in SERVICE_MAP
+    ]
 
 
 SERVICE_MAP = [
     {
-        "title": "Abfallwirtschaft Rems-Murr",
+        "title": "Abfallwirtschaft Rems-Murr (AWRM) - AWIDO Version",
         "url": "https://www.abfallwirtschaft-rems-murr.de/",
         "service_id": "rmk",
     },
@@ -89,6 +101,11 @@ SERVICE_MAP = [
         "title": "Landkreis Kulmbach",
         "url": "https://www.landkreis-kulmbach.de/",
         "service_id": "kulmbach",
+    },
+    {
+        "title": "Landkreis Lichtenfels",
+        "url": "https://www.lkr-lif.de/",
+        "service_id": "lichtenfels",
     },
     {
         "title": "Landkreis Erding",
@@ -220,9 +237,179 @@ SERVICE_MAP = [
         "url": "https://www.landkreis-regensburg.de/",
         "service_id": "lra-regensburg",
     },
+    {
+        "title": "Landkreis Gießen",
+        "url": "https://www.lkgi.de/",
+        "service_id": "lkgi",
+    },
+    {
+        "title": "Landkreis Gifhorn",
+        "url": "https://www.gifhorn.de/",
+        "service_id": "gifhorn",
+    },
+    {
+        "title": "Stadt Königstein im Taunus",
+        "url": "https://www.koenigstein.de/",
+        "service_id": "koenigstein",
+    },
+    {
+        "title": "Anzing",
+        "url": "https://www.lra-ebe.de/",
+        "service_id": "ebe",
+        "default_params": {"city": "Anzing"},
+    },
+    {
+        "title": "Aßling",
+        "url": "https://www.lra-ebe.de/",
+        "service_id": "ebe",
+        "default_params": {"city": "Aßling"},
+    },
+    {
+        "title": "Baiern",
+        "url": "https://www.lra-ebe.de/",
+        "service_id": "ebe",
+        "default_params": {"city": "Baiern"},
+    },
+    {
+        "title": "Bruck",
+        "url": "https://www.lra-ebe.de/",
+        "service_id": "ebe",
+        "default_params": {"city": "Bruck"},
+    },
+    {
+        "title": "Ebersberg",
+        "url": "https://www.lra-ebe.de/",
+        "service_id": "ebe",
+        "default_params": {"city": "Ebersberg"},
+    },
+    {
+        "title": "Egmating",
+        "url": "https://www.lra-ebe.de/",
+        "service_id": "ebe",
+        "default_params": {"city": "Egmating"},
+    },
+    {
+        "title": "Emmering",
+        "url": "https://www.lra-ebe.de/",
+        "service_id": "ebe",
+        "default_params": {"city": "Emmering"},
+    },
+    {
+        "title": "Forstinning",
+        "url": "https://www.lra-ebe.de/",
+        "service_id": "ebe",
+        "default_params": {"city": "Forstinning"},
+    },
+    {
+        "title": "Frauenneuharting",
+        "url": "https://www.lra-ebe.de/",
+        "service_id": "ebe",
+        "default_params": {"city": "Frauenneuharting"},
+    },
+    {
+        "title": "Glonn",
+        "url": "https://www.lra-ebe.de/",
+        "service_id": "ebe",
+        "default_params": {"city": "Glonn"},
+    },
+    {
+        "title": "Grafing",
+        "url": "https://www.lra-ebe.de/",
+        "service_id": "ebe",
+        "default_params": {"city": "Grafing"},
+    },
+    {
+        "title": "Hohenlinden",
+        "url": "https://www.lra-ebe.de/",
+        "service_id": "ebe",
+        "default_params": {"city": "Hohenlinden"},
+    },
+    {
+        "title": "Kirchseeon",
+        "url": "https://www.lra-ebe.de/",
+        "service_id": "ebe",
+        "default_params": {"city": "Kirchseeon"},
+    },
+    {
+        "title": "Moosach",
+        "url": "https://www.lra-ebe.de/",
+        "service_id": "ebe",
+        "default_params": {"city": "Moosach"},
+    },
+    {
+        "title": "Oberpframmern",
+        "url": "https://www.lra-ebe.de/",
+        "service_id": "ebe",
+        "default_params": {"city": "Oberpframmern"},
+    },
+    {
+        "title": "Pliening",
+        "url": "https://www.lra-ebe.de/",
+        "service_id": "ebe",
+        "default_params": {"city": "Pliening"},
+    },
+    {
+        "title": "Poing",
+        "url": "https://www.lra-ebe.de/",
+        "service_id": "ebe",
+        "default_params": {"city": "Poing"},
+    },
+    {
+        "title": "Steinhöring",
+        "url": "https://www.lra-ebe.de/",
+        "service_id": "ebe",
+        "default_params": {"city": "Steinhöring"},
+    },
+    {
+        "title": "Vaterstetten",
+        "url": "https://www.lra-ebe.de/",
+        "service_id": "ebe",
+        "default_params": {"city": "Vaterstetten"},
+    },
+    {
+        "title": "Zorneding",
+        "url": "https://www.lra-ebe.de/",
+        "service_id": "ebe",
+        "default_params": {"city": "Zorneding"},
+    },
+    {
+        "title": "Ingelsberg (Zorneding)",
+        "url": "https://www.lra-ebe.de/",
+        "service_id": "ebe",
+        "default_params": {"city": "Zorneding"},
+    },
+    {
+        "title": "Markt Schwaben",
+        "url": "https://www.lra-ebe.de/",
+        "service_id": "ebe",
+        "default_params": {"city": "Markt Schwaben"},
+    },
+    {
+        "title": "Pöring (Zorneding)",
+        "url": "https://www.lra-ebe.de/",
+        "service_id": "ebe",
+        "default_params": {"city": "Zorneding"},
+    },
+    {
+        "title": "Wolfesing (Zorneding)",
+        "url": "https://www.lra-ebe.de/",
+        "service_id": "ebe",
+        "default_params": {"city": "Zorneding"},
+    },
 ]
 
 TEST_CASES = {
+    "Giffhorn, Hankensbüttel, Allersehl": {
+        "customer": "gifhorn",
+        "city": "Hankensbüttel",
+        "street": "Allersehl",
+    },
+    "coburg rödental krötenleite 4": {
+        "customer": "coburg",
+        "city": "rödental",
+        "street": "krötenleite",
+        "housenumber": 4,
+    },
     "Schorndorf, Miedelsbacher Straße 30 /1": {
         "customer": "rmk",
         "city": "Schorndorf",
@@ -266,6 +453,7 @@ TEST_CASES = {
         "city": "Kissing",
         "street": "Karwendelweg",
     },
+    "Gießen": {"customer": "lkgi", "city": "Langgöns", "street": "Hauptstraße"},
 }
 
 _LOGGER = logging.getLogger(__name__)
@@ -275,15 +463,30 @@ class JSONNotSupported(Exception):
     pass
 
 
-class Source:
-    def __init__(self, customer, city, street=None, housenumber=None):
-        self._customer = customer
-        self._city = city
-        self._street = street
-        self._housenumber = None if housenumber is None else str(housenumber)
-        self._ics = ICS()
+PARAM_TRANSLATIONS = {
+    "de": {
+        "customer": "Kunde",
+        "city": "Ort",
+        "street": "Straße",
+        "housenumber": "Hausnummer",
+    }
+}
 
-    def fetch(self):
+
+class Source:
+    def __init__(
+        self,
+        customer: str,
+        city: str,
+        street: str | None = None,
+        housenumber: str | int | None = None,
+    ):
+        self._customer = customer.lower()
+        self._city = city.lower()
+        self._street = street.lower() if street else None
+        self._housenumber = None if housenumber is None else str(housenumber).lower()
+
+    def fetch(self) -> list[Collection]:
         # Retrieve list of places
         r = requests.get(
             f"https://awido.cubefour.de/WebServices/Awido.Service.svc/secure/getPlaces/client={self._customer}"
@@ -292,10 +495,14 @@ class Source:
         places = r.json()
 
         # create city to key map from retrieved places
-        city_to_oid = {place["value"].strip(): place["key"] for (place) in places}
+        city_to_oid = {
+            place["value"].strip().lower(): place["key"] for (place) in places
+        }
 
         if self._city not in city_to_oid:
-            raise Exception(f"city not found: {self._city}")
+            raise SourceArgumentNotFoundWithSuggestions(
+                "city", self._city, suggestions=list(city_to_oid.keys())
+            )
 
         oid = city_to_oid[self._city]
 
@@ -323,11 +530,13 @@ class Source:
 
             # create street to key map from retrieved places
             street_to_oid = {
-                street["value"].strip(): street["key"] for (street) in streets
+                street["value"].strip().lower(): street["key"] for (street) in streets
             }
 
             if self._street not in street_to_oid:
-                raise Exception(f"street not found: {self._street}")
+                raise SourceArgumentNotFoundWithSuggestions(
+                    "street", self._street, suggestions=list(street_to_oid.keys())
+                )
 
             oid = street_to_oid[self._street]
 
@@ -341,13 +550,24 @@ class Source:
 
                 # create housenumber to key map from retrieved places
                 hsnbr_to_oid = {
-                    hsnbr["value"].strip(): hsnbr["key"] for (hsnbr) in hsnbrs
+                    hsnbr["value"].strip().lower(): hsnbr["key"] for (hsnbr) in hsnbrs
                 }
-
-                if self._housenumber not in hsnbr_to_oid:
-                    raise Exception(f"housenumber not found: {self._housenumber}")
-
-                oid = hsnbr_to_oid[self._housenumber]
+                if (
+                    len(hsnbr_to_oid) == 0
+                    or len(hsnbr_to_oid) == 1
+                    and "" in hsnbr_to_oid
+                ):
+                    _LOGGER.warning(
+                        "No housenumbers found for street, using street only"
+                    )
+                else:
+                    if self._housenumber not in hsnbr_to_oid:
+                        raise SourceArgumentNotFoundWithSuggestions(
+                            "housenumber",
+                            self._housenumber,
+                            suggestions=list(hsnbr_to_oid.keys()),
+                        )
+                    oid = hsnbr_to_oid[self._housenumber]
 
         try:
             return self.get_json_data(oid)
@@ -372,14 +592,61 @@ class Source:
             r.raise_for_status()
             ics_file = r.text
 
-            dates = self._ics.convert(ics_file)
+            # Fix EXDATE format issue (same as ICS service)
+            ics_file = re.sub(
+                r"(EXDATE;VALUE=DATE:[0-9]+)\r?\n",
+                lambda m: m.group(1) + "T010000\n",
+                ics_file,
+            )
+
+            start_date = now.replace(hour=0, minute=0, second=0, microsecond=0)
+            end_date = start_date + datetime.timedelta(days=365)
+
+            events = icalevents.events(
+                start=start_date, end=end_date, string_content=ics_file.encode()
+            )
 
             entries = []
-            for d in dates:
-                # prevents duplicates
-                if any(e.date == d[0] and e.type == d[1] for e in entries):
+            for e in events:
+                if isinstance(e.start, datetime.datetime):
+                    date = e.start.date()
+                elif isinstance(e.start, datetime.date):
+                    date = e.start
+                else:
                     continue
-                entries.append(Collection(d[0], d[1]))
+
+                waste_type = e.summary
+
+                # Extract extra attributes (location, description, time) for
+                # special events like Schadstoffmobil that have specific
+                # locations and time windows
+                extra: dict = {}
+                if e.location:
+                    extra["location"] = e.location
+                if e.description:
+                    extra["description"] = e.description
+                # Only add time attributes for events with a specific time
+                # (not all-day events like regular waste collection pickups)
+                if not e.all_day:
+                    if isinstance(e.start, datetime.datetime):
+                        extra["start_time"] = e.start.strftime("%H:%M")
+                    if e.end and isinstance(e.end, datetime.datetime):
+                        extra["end_time"] = e.end.strftime("%H:%M")
+
+                # Prevent duplicates: two events are the same if they share
+                # date, type, location, and start_time
+                if any(
+                    existing.date == date
+                    and existing.type == waste_type
+                    and existing.get("location") == extra.get("location")
+                    and existing.get("start_time") == extra.get("start_time")
+                    for existing in entries
+                ):
+                    continue
+
+                c = Collection(date, waste_type)
+                c.update(extra)
+                entries.append(c)
 
         return entries
 
@@ -403,9 +670,19 @@ class Source:
         for calitem in calendar:
             date = datetime.datetime.strptime(calitem["dt"], "%Y%m%d").date()
 
-            # add all fractions for this date
+            # Extract extra attributes from calendar item
+            # 'ad' contains the location/address for the collection event
+            # (None for public holidays, which are already filtered above)
+            extra: dict = {}
+            ad = calitem.get("ad")
+            if ad and isinstance(ad, str):
+                extra["description"] = ad
+
+            # Add all fractions for this date
             for fracitem in calitem["fr"]:
                 waste_type = fractions[fracitem]
-                entries.append(Collection(date, waste_type))
+                c = Collection(date, waste_type)
+                c.update(extra)
+                entries.append(c)
 
         return entries

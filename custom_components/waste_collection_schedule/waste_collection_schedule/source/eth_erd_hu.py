@@ -3,6 +3,9 @@ import json
 
 import requests
 from waste_collection_schedule import Collection  # type: ignore[attr-defined]
+from waste_collection_schedule.exceptions import (
+    SourceArgumentNotFoundWithSuggestions,
+)
 
 TITLE = "ÉTH (Érd, Diósd, Nagytarcsa, Sóskút, Tárnok)"
 DESCRIPTION = "Source script for www.eth-erd.hu"
@@ -54,7 +57,9 @@ class Source:
 
         city_id = CITY_MAP.get(self._city.lower())
         if city_id is None:
-            raise Exception("City not found")
+            raise SourceArgumentNotFoundWithSuggestions(
+                "city", self._city, CITY_MAP.keys()
+            )
         has_streets = city_id != CITY_MAP["sóskút"]
 
         if has_streets:
@@ -74,22 +79,25 @@ class Source:
                     item for item in streets if item.get("text") == self._street
                 ][0]["id"]
             except IndexError:
-                raise Exception(
-                    "Street not found, available streets: "
-                    + ", ".join(available_streets)
+                raise SourceArgumentNotFoundWithSuggestions(
+                    "street",
+                    self._street,
+                    available_streets,
                 )
 
         r = session.post(
             API_URL,
-            data={
-                "wctown": city_id,
-                "wcstreet": street_id,
-                "wchousenumber": self._house_number,
-            }
-            if has_streets
-            else {
-                "wctown": city_id,
-            },
+            data=(
+                {
+                    "wctown": city_id,
+                    "wcstreet": street_id,
+                    "wchousenumber": self._house_number,
+                }
+                if has_streets
+                else {
+                    "wctown": city_id,
+                }
+            ),
             headers={
                 "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
                 "X-Requested-With": "XMLHttpRequest",

@@ -1,5 +1,6 @@
 import requests
 from waste_collection_schedule import Collection  # type: ignore[attr-defined]
+from waste_collection_schedule.exceptions import SourceArgumentRequired
 from waste_collection_schedule.service.ICS import ICS
 
 TITLE = "C-Trace"
@@ -8,7 +9,10 @@ URL = "https://c-trace.de/"
 
 
 def EXTRA_INFO():
-    return [{"title": s["title"], "url": s["url"]} for s in SERVICE_MAP.values()]
+    return [
+        {"title": s["title"], "url": s["url"], "default_params": {"service": key}}
+        for key, s in SERVICE_MAP.items()
+    ]
 
 
 TEST_CASES = {
@@ -61,6 +65,13 @@ TEST_CASES = {
         "hausnummer": "2d/e",
         "service": "aurich-abfallkalender",
     },
+    "MainTauber 4-weekly": {
+        "ort": "Tauberbischofsheim",
+        "strasse": "Hauptstraße",
+        "hausnummer": 1,
+        "service": "maintauberkreis-abfallkalender",
+        "abfall": "0|1|2|5",
+    },
 }
 
 DEFAULT_SUBDOMAIN = "web"
@@ -108,10 +119,6 @@ SERVICE_MAP = {
         "title": "Stadt Arnsberg",
         "url": "https://www.arnsberg.de/",
     },
-    "overathabfallkalender": {
-        "title": "Stadt Overath",
-        "url": "https://www.overath.de/",
-    },
     "landau": {
         "title": "Entsorgungs- und Wirtschaftsbetrieb Landau in der Pfalz",
         "url": "https://www.ew-landau.de/",
@@ -155,9 +162,37 @@ SERVICE_MAP = {
 BASE_URL = "https://{subdomain}.c-trace.de"
 
 
+PARAM_DESCRIPTIONS = {
+    "en": {
+        "abfall": "Pipe-separated waste type IDs to fetch (e.g. '0|1|2|5'). "
+        "Leave empty to fetch all types. Visit your provider's calendar page "
+        "to see which IDs correspond to which waste types.",
+    },
+}
+
+PARAM_TRANSLATIONS = {
+    "en": {
+        "strasse": "Street",
+        "hausnummer": "House number",
+        "gemeinde": "Municipality",
+        "ort": "District",
+        "ortsteil": "Subdistrict",
+        "service": "Operator",
+        "abfall": "Waste type IDs",
+    }
+}
+
+
 class Source:
     def __init__(
-        self, strasse, hausnummer, gemeinde="", ort="", ortsteil="", service=None
+        self,
+        strasse,
+        hausnummer,
+        gemeinde="",
+        ort="",
+        ortsteil="",
+        service=None,
+        abfall="",
     ):
         # Compatibility handling for Bremen which was the first supported
         # district and didn't require to set a service name.
@@ -165,7 +200,9 @@ class Source:
             if ort == "Bremen":
                 service = "bremenabfallkalender"
             else:
-                raise Exception("service is missing")
+                raise SourceArgumentRequired(
+                    "service", "service is required if ort is not Bremen"
+                )
 
         subdomain = DEFAULT_SUBDOMAIN
         ical_url_file = DEFAULT_ICAL_URL_FILE
@@ -189,6 +226,9 @@ class Source:
         self._base_url = BASE_URL.format(subdomain=subdomain)
         self.ical_url_file = ical_url_file
         self._ics = ICS(regex=r"Abfuhr: (.*)")
+        if not abfall:
+            abfall = "|".join(str(i) for i in range(0, 99))
+        self._abfall = abfall
 
     def fetch(self):
         session = requests.session()
@@ -210,7 +250,7 @@ class Source:
             "Gemeinde": self._gemeinde,
             "Strasse": self._strasse,
             "Hausnr": self._hausnummer,
-            "Abfall": "|".join(str(i) for i in range(0, 99)),  # return all waste types
+            "Abfall": self._abfall,
         }
         if self._ortsteil:
             args["Ortsteil"] = self._ortsteil

@@ -1,14 +1,13 @@
 # Credit where it's due:
-# This is predominantly a refactoring of the Bristol City Council script from the UKBinCollectionData repo
-# https://github.com/robbrad/UKBinCollectionData
+# This is based on the elmbridge_gov_uk source
 
 
-import re
 from datetime import datetime
 
 import requests
-from bs4 import BeautifulSoup
+from dateutil.parser import parse
 from waste_collection_schedule import Collection  # type: ignore[attr-defined]
+from waste_collection_schedule.service.AchieveForms import init_session, run_lookup
 
 TITLE = "Crawley Borough Council (myCrawley)"
 DESCRIPTION = "Source for Crawley Borough Council (myCrawley)."
@@ -28,7 +27,13 @@ ICON_MAP = {
 }
 
 
-API_URL = "https://my.crawley.gov.uk/en/service/check_my_bin_collection"
+BASE_URL = "https://my.crawley.gov.uk"
+INTIAL_URL = f"{BASE_URL}/en/service/check_my_bin_collection"
+AUTH_URL = f"{BASE_URL}/authapi/isauthenticated"
+AUTH_TEST = f"{BASE_URL}/apibroker/domain/my.crawley.gov.uk"
+API_URL = f"{BASE_URL}/apibroker/runLookup"
+
+LOOKUP_ID = "5b4f0ec5f13f4"
 
 
 class Source:
@@ -36,49 +41,67 @@ class Source:
         self._uprn = str(uprn)
         self._usrn = str(usrn) if usrn else None
 
-    def fetch(self):
-        today = datetime.now().date()
-        day = today.day
-        month = today.month
-        year = today.year
+    def _get_payload(self) -> dict[str, dict]:
+        now = datetime.now()
+        return {
+            "Address": {
+                "address": {
+                    "value": {
+                        "Address": {
+                            "usrn": {"value": self._usrn or "0000"},
+                            "uprn": {"value": self._uprn},
+                        }
+                    }
+                },
+                "dayConverted": {"value": now.strftime("%d/%m/%Y")},
+                "getCollection": {"value": "true"},
+                "getWorksheets": {"value": "false"},
+            }
+        }
 
-        api_url = (
-            f"https://my.crawley.gov.uk/appshost/firmstep/self/apps/custompage/waste?language=en&uprn={self._uprn}"
-            f"&usrn={self._usrn}&day={day}&month={month}&year={year}"
+    def get_collections(self, session_key: str, session: requests.Session) -> list[Collection]:
+        result = run_lookup(
+            session,
+            API_URL,
+            session_key,
+            LOOKUP_ID,
+            self._get_payload(),
         )
-        response = requests.get(api_url)
+        return list(result["integration"]["transformed"]["rows_data"].values())
 
-        soup = BeautifulSoup(response.text, features="html.parser")
-        soup.prettify()
-
+    def fetch(self) -> list[Collection]:
+        session = requests.Session()
+        session_key = init_session(
+            session,
+            INTIAL_URL,
+            AUTH_URL,
+            "elmbridge-self.achieveservice.com",
+            auth_test_url=AUTH_TEST,
+        )
+        collections = self.get_collections(session_key, session)
+        date_parse_failed = []
         entries = []
+        for collection in collections:
+            for key in [
+                k
+                for k in collection.keys()
+                if k.endswith("DateCurrent") or k.endswith("DateNext")
+            ]:
+                date_str = collection[key]
+                try:
+                    date = parse(date_str, dayfirst=True).date()
+                except ValueError:
+                    date_parse_failed.append(date_str)
+                if not date_str:
+                    continue
+                bin_type = key.split("Date")[0]
+                icon = ICON_MAP.get(bin_type)
+                entries.append(Collection(date=date, t=bin_type, icon=icon))
 
-        titles = [title.text.strip() for title in soup.select(".block-title")]
-        collection_tag = soup.body.find_all(
-            "div",
-            {"class": "col-md-6 col-sm-6 col-xs-6"},
-            string=re.compile("Next collection|Current or last collection"),
-        )
-
-        bin_index = 0
-        for tag in collection_tag:
-            for item in tag.next_elements:
-                if str(item).startswith('<div class="date text-right text-grey">'):
-                    collection_date = datetime.strptime(
-                        item.text + " " + str(year), "%A %d %B %Y"
-                    ).date()
-                    if collection_date < today and bin_index % 2 == 1:
-                        collection_date = collection_date.replace(
-                            year=collection_date.year + 1
-                        )
-                    entries.append(
-                        Collection(
-                            date=collection_date,
-                            t=titles[bin_index // 2],
-                            icon=ICON_MAP.get(titles[bin_index // 2]),
-                        )
-                    )
-                    bin_index += 1
-                    break
-
+        if not entries:
+            if date_parse_failed:
+                raise ValueError(
+                    f"Failed to parse dates: {', '.join(date_parse_failed)}"
+                )
+            raise ValueError(f"No collections found for {self._uprn}")
         return entries
